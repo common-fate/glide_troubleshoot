@@ -188,7 +188,7 @@ func (s *IdentitySyncer) Sync(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	usersMap, groupsMap := processUsersAndGroups(s.idpType, idpUsers, idpGroups, uq.Result, gq.Result, useIdpGroupsAsFilter)
+	usersMap, groupsMap := processUsersAndGroups(s.idpType, idpUsers, idpGroups, uq.Result, gq.Result, useIdpGroupsAsFilter, ctx)
 	items := make([]ddb.Keyer, 0, len(usersMap)+len(groupsMap))
 	for _, v := range usersMap {
 		vi := v
@@ -222,8 +222,9 @@ func (s *IdentitySyncer) setDeploymentInfo(ctx context.Context, log *zap.Sugared
 // useIdpGroupsAsFilter == true: only users with groups that exist in the IDP will be returned, this is used conditionally with a regex filter that prefilters any groups. Side effects: users with no groups are removed, only filtered groups show in the UI (loss of information; for better or worse)
 //
 // useIdpGroupsAsFilter == false: users with no groups remain, all groups show in the UI. If a user/group is removed from the IDP, it will be archived in the DB
-func processUsersAndGroups(idpType string, idpUsers []identity.IDPUser, idpGroups []identity.IDPGroup, internalUsers []identity.User, internalGroups []identity.Group, useIdpGroupsAsFilter bool) (map[string]identity.User, map[string]identity.Group) {
+func processUsersAndGroups(idpType string, idpUsers []identity.IDPUser, idpGroups []identity.IDPGroup, internalUsers []identity.User, internalGroups []identity.Group, useIdpGroupsAsFilter bool, ctx context.Context) (map[string]identity.User, map[string]identity.Group) {
 
+	log := logger.Get(ctx)
 	idpGroupMap := make(map[string]identity.IDPGroup)
 	for _, g := range idpGroups {
 		idpGroupMap[g.ID] = g
@@ -248,23 +249,27 @@ func processUsersAndGroups(idpType string, idpUsers []identity.IDPUser, idpGroup
 	for _, u := range idpUserMap {
 		//update
 		if existing, ok := ddbUserMap[u.Email]; ok {
+			log.Infow("Updating user: %s", u.Email)
 			existing.FirstName = u.FirstName
 			existing.LastName = u.LastName
 			ddbUserMap[u.Email] = existing
 		} else {
 			// create
+			log.Infow("Creating user: %s", u.Email)
 			ddbUserMap[u.Email] = u.ToInternalUser()
 		}
 	}
 	// update/create groups
 	for _, idpGroup := range idpGroups {
 		if existingGroup, ok := ddbGroupMap[idpGroup.ID]; ok { //update
+			log.Infow("Updating group: %s", idpGroup.ID)
 			existingGroup.Description = idpGroup.Description
 			existingGroup.Name = idpGroup.Name
 			existingGroup.Status = types.IdpStatusACTIVE
 			existingGroup.Source = idpType
 			ddbGroupMap[idpGroup.ID] = existingGroup
 		} else { // create
+			log.Infow("Creating group: %s", idpGroup.ID)
 			newGroup := idpGroup.ToInternalGroup(idpType)
 			ddbGroupMap[idpGroup.ID] = newGroup
 			internalGroupUsers[newGroup.ID] = make(map[string]string)
@@ -274,6 +279,7 @@ func processUsersAndGroups(idpType string, idpUsers []identity.IDPUser, idpGroup
 	// archive deleted users
 	for k, u := range ddbUserMap {
 		if _, ok := idpUserMap[k]; !ok {
+			log.Infow("Archiving user: %s", k)
 			u.Status = types.IdpStatusARCHIVED
 			// Remove all group associations from archived users
 			u.Groups = []string{}
@@ -300,6 +306,7 @@ func processUsersAndGroups(idpType string, idpUsers []identity.IDPUser, idpGroup
 		if _, ok := idpGroupMap[k]; !ok {
 			if g.Source != identity.INTERNAL {
 
+				log.Infow("Archiving group: %s", g.ID)
 				g.Status = types.IdpStatusARCHIVED
 				// Remove all user associations from archived groups
 				g.Users = []string{}
@@ -360,6 +367,7 @@ func processUsersAndGroups(idpType string, idpUsers []identity.IDPUser, idpGroup
 		internalUser.Groups = groupKeys
 		// if the user is not in any groups, archive them
 		if len(internalUser.Groups) == 0 && useIdpGroupsAsFilter {
+			log.Infow("Archiving user (no groups): %s", idpUser.Email)
 			internalUser.Status = types.IdpStatusARCHIVED
 		}
 		ddbUserMap[idpUser.Email] = internalUser
