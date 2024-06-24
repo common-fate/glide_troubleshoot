@@ -16,6 +16,7 @@ import (
 	"github.com/common-fate/ddb"
 	"github.com/common-fate/grab"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 )
 
 type IdentityProvider interface {
@@ -411,6 +412,14 @@ func processUsersAndGroups(log *zap.SugaredLogger, idpType string, idpUsers []id
 			ddbGroupMap[k] = v
 		}
 	}
+
+	archivedUsers := grab.Filter(maps.Values(ddbUserMap), func(u identity.User) bool { return u.Status == types.IdpStatusARCHIVED })
+	activeUsers := grab.Filter(maps.Values(ddbUserMap), func(u identity.User) bool { return u.Status == types.IdpStatusACTIVE })
+	archivedGroups := grab.Filter(maps.Values(ddbGroupMap), func(u identity.Group) bool { return u.Status == types.IdpStatusARCHIVED })
+	activeGroups := grab.Filter(maps.Values(ddbGroupMap), func(u identity.Group) bool { return u.Status == types.IdpStatusACTIVE })
+
+	log.Infow("outputs", "users", maps.Values(ddbUserMap), "groups", maps.Values(ddbGroupMap))
+	log.Infow("processUsersAndGroups output", "archivedUsers.count", len(archivedUsers), "activeUsers.count", len(activeUsers), "archivedGroups.count", len(archivedGroups), "activeGroups.count", len(activeGroups))
 
 	return ddbUserMap, ddbGroupMap
 }
