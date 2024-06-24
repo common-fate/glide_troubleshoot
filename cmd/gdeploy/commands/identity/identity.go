@@ -26,6 +26,7 @@ var Command = cli.Command{
 		&CognitoSamlCommand,
 		middleware.WithBeforeFuncs(&users.UsersCommand, PreventNonCognitoUsage()),
 		middleware.WithBeforeFuncs(&groups.GroupsCommand, PreventNonCognitoUsage()),
+		&sync.SyncLocalCommand,
 	},
 }
 

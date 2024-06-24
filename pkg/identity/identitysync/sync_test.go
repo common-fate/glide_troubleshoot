@@ -8,6 +8,7 @@ import (
 	"github.com/common-fate/common-fate/pkg/identity"
 	"github.com/common-fate/common-fate/pkg/types"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zaptest"
 )
 
 // The processor contains all the mapping logic for create/update/map for users and groups
@@ -685,7 +686,7 @@ func TestIdentitySyncProcessor(t *testing.T) {
 		tc := testcases[i]
 
 		t.Run(tc.name, func(t *testing.T) {
-			gotUsers, gotGroups := processUsersAndGroups(tc.withIdpType, tc.giveIdpUsers, tc.giveIdpGroups, tc.giveInternalUsers, tc.giveInternalGroups, tc.useIdpGroupsAsFilter)
+			gotUsers, gotGroups := processUsersAndGroups(zaptest.NewLogger(t).Sugar(), tc.withIdpType, tc.giveIdpUsers, tc.giveIdpGroups, tc.giveInternalUsers, tc.giveInternalGroups, tc.useIdpGroupsAsFilter)
 			for k, u := range tc.wantUserMap {
 				got := gotUsers[k]
 				u.ID = got.ID

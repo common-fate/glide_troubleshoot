@@ -1,6 +1,8 @@
 module github.com/common-fate/common-fate
 
-go 1.19
+go 1.21.3
+
+toolchain go1.22.0
 
 require (
 	github.com/99designs/keyring v1.2.2
@@ -205,7 +207,7 @@ require (
 	github.com/common-fate/analytics-go v0.2.0
 	github.com/common-fate/clio v1.1.0
 	github.com/common-fate/ddb v0.15.0
-	github.com/common-fate/grab v1.0.0
+	github.com/common-fate/grab v1.4.0
 	github.com/common-fate/iso8601 v1.1.0
 	github.com/common-fate/provider-registry-sdk-go v0.19.0
 	github.com/fatih/color v1.13.0
@@ -215,7 +217,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/slack-go/slack v0.11.2
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli/v2 v2.11.1
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
