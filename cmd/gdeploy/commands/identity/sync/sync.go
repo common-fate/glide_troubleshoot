@@ -14,6 +14,7 @@ import (
 	"github.com/common-fate/common-fate/pkg/cfaws"
 	"github.com/common-fate/common-fate/pkg/deploy"
 	"github.com/common-fate/common-fate/pkg/identity/identitysync"
+	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )
 
@@ -69,6 +70,39 @@ var SyncCommand = cli.Command{
 			clio.Successf("Successfully synced users and groups using %s", idp)
 		} else {
 			return fmt.Errorf("user and group sync failed with lambda invoke status code: %d", res.StatusCode)
+		}
+		return nil
+	}}
+
+var SyncLocalCommand = cli.Command{
+	Name: "sync-local",
+	Action: func(c *cli.Context) error {
+		ctx := c.Context
+
+		dc, err := deploy.ConfigFromContext(ctx)
+		if err != nil {
+			return err
+		}
+		o, err := dc.LoadOutput(ctx)
+		if err != nil {
+			return err
+		}
+
+		//set up the sync handler
+		syncer, err := identitysync.NewIdentitySyncer(ctx, identitysync.SyncOpts{
+			TableName:           o.DynamoDBTable,
+			IdpType:             "okta", // hardcoded to okta for the test
+			UserPoolId:          o.UserPoolID,
+			IdentityConfig:      dc.Deployment.Parameters.IdentityConfiguration,
+			IdentityGroupFilter: "",
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to init the identity syncer")
+		}
+
+		err = syncer.Sync(ctx)
+		if err != nil {
+			return err
 		}
 		return nil
 	}}
